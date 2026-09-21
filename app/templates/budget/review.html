@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Review Budget Proposal — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+    <div>
+      <h2>AI Budget Proposal Review</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Review, customize, and accept your proposed budget for <strong>{{ target_month }}</strong>.
+      </p>
+    </div>
+    <span class="badge badge-purple" style="font-size: 0.85rem; padding: 0.4rem 0.85rem;">
+      <i data-feather="cpu" style="width: 14px; height: 14px;"></i> {{ proposal.generated_by.upper() }}
+    </span>
+  </div>
+
+  <!-- AI Strategy Summary Card -->
+  <div class="card" style="margin-bottom: 2rem; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.05);">
+    <h3 style="color: #c084fc; font-size: 1.1rem; margin-bottom: 0.75rem;">
+      <i data-feather="message-circle" style="vertical-align: middle;"></i> Advisor Strategy
+    </h3>
+    <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.75rem;">
+      {{ proposal.summary }}
+    </p>
+    {% if proposal.persona_strategy %}
+      <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">
+        <strong>Persona Strategy:</strong> {{ proposal.persona_strategy }}
+      </p>
+    {% endif %}
+    {% if proposal.savings_tip %}
+      <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--primary); padding: 0.65rem 1rem; border-radius: 4px; font-size: 0.875rem; color: #34d399;">
+        <strong>Pro Tip:</strong> {{ proposal.savings_tip }}
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Financial Baseline Metrics -->
+  <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+    <div class="card kpi-card">
+      <div class="kpi-label">Income Basis</div>
+      <div class="kpi-value income">{{ currency_symbol }} {{ "{:,.2f}".format(proposal.total_income_basis) }}</div>
+      {% if proposal.tax_set_aside > 0 %}
+        <div class="kpi-meta" style="color: #fbbf24;">Tax Set-Aside: {{ currency_symbol }} {{ "{:,.2f}".format(proposal.tax_set_aside) }}</div>
+      {% endif %}
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Spendable Pool</div>
+      <div class="kpi-value">{{ currency_symbol }} {{ "{:,.2f}".format(proposal.spendable_income) }}</div>
+      <div class="kpi-meta">After reserved allocations</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Target Savings</div>
+      <div class="kpi-value savings">{{ currency_symbol }} {{ "{:,.2f}".format(proposal.target_savings) }}</div>
+      <div class="kpi-meta">Recommended Wealth Target</div>
+    </div>
+  </div>
+
+  <!-- Interactive Budget Allocation Form -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="edit-3" style="color: var(--primary); vertical-align: middle;"></i> Customize Proposed Limits</span>
+      <span id="allocatedBadge" class="badge badge-info">
+        Allocated: {{ currency_symbol }} <span id="allocatedSum">{{ "{:,.2f}".format(proposal.total_allocated) }}</span>
+      </span>
+    </h3>
+
+    <form method="POST" action="{{ url_for('budget.accept_proposal') }}" id="budgetAcceptForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="month" value="{{ target_month }}">
+      <input type="hidden" name="total_income_basis" value="{{ proposal.total_income_basis }}">
+      <input type="hidden" name="generated_by" value="{{ proposal.generated_by }}">
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Kind</th>
+              <th style="width: 180px;">Proposed Limit ({{ currency_symbol }})</th>
+              <th>AI Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in proposal['items'] %}
+            <tr>
+              <td><strong>{{ item.category_name }}</strong></td>
+              <td>
+                {% if item.category_kind == 'need' %}
+                  <span class="badge badge-info">Need</span>
+                {% else %}
+                  <span class="badge badge-purple">Want</span>
+                {% endif %}
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" 
+                       name="limit_{{ item.category_id }}" 
+                       value="{{ item.limit_amount }}" 
+                       class="form-control limit-input" 
+                       style="padding: 0.45rem 0.75rem; font-size: 0.9rem;"
+                       oninput="recalcTotal()">
+                <input type="hidden" name="reason_{{ item.category_id }}" value="{{ item.ai_reason }}">
+              </td>
+              <td style="font-size: 0.85rem; color: var(--text-sub);">
+                {{ item.ai_reason }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <a href="{{ url_for('budget.index') }}" class="btn btn-outline">
+          Cancel
+        </a>
+        <button type="submit" class="btn btn-primary" id="activateBtn">
+          <i data-feather="check-circle"></i> Activate This Budget
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const spendablePool = parseFloat("{{ proposal.spendable_income }}");
+
+  function recalcTotal() {
+    const inputs = document.querySelectorAll(".limit-input");
+    let total = 0;
+    inputs.forEach(input => {
+      const val = parseFloat(input.value) || 0;
+      total += val;
+    });
+
+    const sumElem = document.getElementById("allocatedSum");
+    if (sumElem) sumElem.innerText = total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const badge = document.getElementById("allocatedBadge");
+    const activateBtn = document.getElementById("activateBtn");
+
+    if (total > spendablePool + 0.05) {
+      badge.className = "badge badge-danger";
+      badge.innerText = `Exceeds Pool by ${(total - spendablePool).toFixed(2)}`;
+    } else {
+      badge.className = "badge badge-info";
+      badge.innerHTML = `Allocated: {{ currency_symbol }} <span id="allocatedSum">${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+    }
+  }
+</script>
+{% endblock %}

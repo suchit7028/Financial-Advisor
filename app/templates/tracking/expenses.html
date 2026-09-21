@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Expense Tracking — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>Expense Log</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Total expenses for <strong>{{ selected_month }}</strong>:
+      <strong style="color: #f87171;">{{ currency_symbol }} {{ "{:,.2f}".format(total_expenses) }}</strong>
+    </p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+    <form method="GET" action="{{ url_for('tracking.expenses') }}" id="filterForm" style="display: flex; gap: 0.5rem;">
+      <input type="month" name="month" class="form-control" value="{{ selected_month }}" onchange="document.getElementById('filterForm').submit()" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;">
+      <select name="category_id" class="form-control" onchange="document.getElementById('filterForm').submit()" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if selected_category == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{{ url_for('reports.export_csv', month=selected_month) }}" class="btn btn-outline btn-sm">
+      <i data-feather="download"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<div class="grid-3">
+  <!-- Table of Expenses -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="list" style="color: #f87171; vertical-align: middle;"></i> Transactions</span>
+      <span class="badge badge-info">{{ expenses|length }} Logged</span>
+    </h3>
+
+    {% if expenses %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Nature</th>
+            <th>Amount</th>
+            <th>Method</th>
+            <th>Notes</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exp in expenses %}
+          <tr>
+            <td>{{ exp.date.strftime('%d %b %Y') }}</td>
+            <td>
+              <strong>{{ exp.category.name if exp.category else 'Uncategorized' }}</strong>
+            </td>
+            <td>
+              {% if exp.need_want == 'need' %}
+                <span class="badge badge-info">Need</span>
+              {% else %}
+                <span class="badge badge-purple">Want</span>
+              {% endif %}
+            </td>
+            <td style="color: #f87171; font-weight: 600;">
+              {{ currency_symbol }} {{ "{:,.2f}".format(exp.amount) }}
+            </td>
+            <td style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
+              {{ exp.payment_method or '-' }}
+            </td>
+            <td style="color: var(--text-muted); font-size: 0.85rem;">{{ exp.notes or '-' }}</td>
+            <td style="text-align: right;">
+              <form method="POST" action="{{ url_for('tracking.delete_expense', expense_id=exp.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this expense?');">
+                  <i data-feather="trash" style="width: 13px; height: 13px;"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); padding: 2rem 0; text-align: center;">No expenses recorded matching your filter.</p>
+    {% endif %}
+  </div>
+
+  <!-- Quick Add / Log Expense Sidebar -->
+  <div>
+    <div class="card">
+      <h3 class="card-title">
+        <span><i data-feather="plus-circle" style="color: #f87171; vertical-align: middle;"></i> Log Expense</span>
+      </h3>
+      <form method="POST" action="{{ url_for('tracking.expenses') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+          <label class="form-label">{{ form.amount.label }} ({{ currency_symbol }})</label>
+          {{ form.amount(class="form-control", placeholder="e.g. 1200") }}
+          {% for error in form.amount.errors %}
+            <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.category_id.label }}</label>
+          {{ form.category_id(class="form-control") }}
+        </div>
+        <div class="grid-2" style="margin-bottom: 0;">
+          <div class="form-group">
+            <label class="form-label">{{ form.need_want.label }}</label>
+            {{ form.need_want(class="form-control") }}
+          </div>
+          <div class="form-group">
+            <label class="form-label">{{ form.payment_method.label }}</label>
+            {{ form.payment_method(class="form-control") }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.date.label }}</label>
+          {{ form.date(class="form-control") }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.notes.label }}</label>
+          {{ form.notes(class="form-control", placeholder="e.g. Weekly grocery trip") }}
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i data-feather="check"></i> Save Expense
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

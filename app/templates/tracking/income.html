@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Income Tracking — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>Income Tracking</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Record salary, client invoices, allowances, or dividends. Total for <strong>{{ selected_month }}</strong>:
+      <strong style="color: #34d399;">{{ currency_symbol }} {{ "{:,.2f}".format(total_income) }}</strong>
+    </p>
+  </div>
+
+  <form method="GET" action="{{ url_for('tracking.income') }}" id="incomeMonthForm">
+    <input type="month" name="month" class="form-control" value="{{ selected_month }}" onchange="document.getElementById('incomeMonthForm').submit()" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;">
+  </form>
+</div>
+
+<div class="grid-3">
+  <!-- Table of Incomes -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="list" style="color: var(--primary); vertical-align: middle;"></i> Income History</span>
+      <span class="badge badge-info">{{ incomes|length }} Entries</span>
+    </h3>
+
+    {% if incomes %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Source</th>
+            <th>Amount</th>
+            <th>Notes</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inc in incomes %}
+          <tr>
+            <td>{{ inc.date.strftime('%d %b %Y') }}</td>
+            <td>
+              <strong>{{ inc.source.name if inc.source else 'General Income' }}</strong>
+              {% if inc.source and inc.source.is_recurring %}
+                <span class="badge badge-success" style="font-size: 0.65rem; margin-left: 0.35rem;">Recurring</span>
+              {% endif %}
+            </td>
+            <td style="color: #34d399; font-weight: 600;">
+              {{ currency_symbol }} {{ "{:,.2f}".format(inc.amount) }}
+            </td>
+            <td style="color: var(--text-muted); font-size: 0.85rem;">{{ inc.notes or '-' }}</td>
+            <td style="text-align: right;">
+              <form method="POST" action="{{ url_for('tracking.delete_income', income_id=inc.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this income record?');">
+                  <i data-feather="trash" style="width: 13px; height: 13px;"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); padding: 2rem 0; text-align: center;">No income records found for {{ selected_month }}.</p>
+    {% endif %}
+  </div>
+
+  <!-- Add Income & Income Sources Sidebar -->
+  <div>
+    <!-- Add Income Entry Form -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <h3 class="card-title">
+        <span><i data-feather="plus-circle" style="color: var(--primary); vertical-align: middle;"></i> Log Income</span>
+      </h3>
+      <form method="POST" action="{{ url_for('tracking.income') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+          <label class="form-label">{{ form.amount.label }} ({{ currency_symbol }})</label>
+          {{ form.amount(class="form-control", placeholder="e.g. 50000") }}
+          {% for error in form.amount.errors %}
+            <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.source_id.label }}</label>
+          {{ form.source_id(class="form-control") }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.date.label }}</label>
+          {{ form.date(class="form-control") }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.notes.label }}</label>
+          {{ form.notes(class="form-control", placeholder="e.g. Monthly direct deposit") }}
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i data-feather="check"></i> Record Income
+        </button>
+      </form>
+    </div>
+
+    <!-- Manage Sources Form -->
+    <div class="card">
+      <h4 style="font-size: 1rem; margin-bottom: 1rem;">
+        <i data-feather="briefcase" style="color: #c084fc; vertical-align: middle;"></i> Add Income Source
+      </h4>
+      <form method="POST" action="{{ url_for('tracking.add_income_source') }}">
+        {{ source_form.hidden_tag() }}
+        <div class="form-group">
+          <label class="form-label">{{ source_form.name.label }}</label>
+          {{ source_form.name(class="form-control", placeholder="e.g. Upwork Client Alpha") }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ source_form.type.label }}</label>
+          {{ source_form.type(class="form-control") }}
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+          {{ source_form.is_recurring() }}
+          <label for="is_recurring" style="color: var(--text-muted); font-size: 0.85rem; cursor: pointer;">Recurring monthly</label>
+        </div>
+        <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;">
+          Add Source
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

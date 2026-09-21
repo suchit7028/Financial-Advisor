@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Financial Reports — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>Monthly Financial Reports</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Executive summaries, budget comparisons, and downloadable PDF audits of your wealth trajectory.
+    </p>
+  </div>
+
+  <div style="display: flex; gap: 0.75rem;">
+    <a href="{{ url_for('reports.view_report', month_str=current_month) }}" class="btn btn-primary btn-sm">
+      <i data-feather="file-text"></i> View Current Month ({{ current_month }})
+    </a>
+    <a href="{{ url_for('reports.export_csv') }}" class="btn btn-outline btn-sm">
+      <i data-feather="download"></i> Export All Transactions (CSV)
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">
+    <span><i data-feather="archive" style="color: var(--primary); vertical-align: middle;"></i> Available Monthly Statements</span>
+  </h3>
+
+  {% if reports %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Statement Month</th>
+          <th>Generated On</th>
+          <th>Total Income</th>
+          <th>Total Expenses</th>
+          <th>Net Savings</th>
+          <th style="text-align: right;">Options</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reports %}
+        <tr>
+          <td><strong style="color: #fff;">{{ r.month }}</strong></td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td style="color: #34d399;">{{ currency_symbol }} {{ "{:,.2f}".format(r.summary_json.total_income) }}</td>
+          <td style="color: #f87171;">{{ currency_symbol }} {{ "{:,.2f}".format(r.summary_json.total_expenses) }}</td>
+          <td style="color: #38bdf8; font-weight: 600;">{{ currency_symbol }} {{ "{:,.2f}".format(r.summary_json.net_savings) }}</td>
+          <td style="text-align: right;">
+            <a href="{{ url_for('reports.view_report', month_str=r.month) }}" class="btn btn-outline btn-sm" style="margin-right: 0.35rem;">
+              <i data-feather="eye" style="width: 13px; height: 13px;"></i> View
+            </a>
+            <a href="{{ url_for('reports.download_pdf', month_str=r.month) }}" class="btn btn-primary btn-sm">
+              <i data-feather="download" style="width: 13px; height: 13px;"></i> PDF
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding: 2.5rem 1rem; text-align: center;">
+    <p style="color: var(--text-muted); margin-bottom: 1.25rem;">No historical monthly reports finalized yet.</p>
+    <a href="{{ url_for('reports.view_report', month_str=current_month) }}" class="btn btn-primary">
+      <i data-feather="file-plus"></i> Generate Statement for {{ current_month }}
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

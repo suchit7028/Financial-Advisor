@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Server Error (500) — Personal Finance Advisor Bot{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 480px; margin: 4rem auto; text-align: center; padding: 3rem 1.5rem;">
+  <div class="brand-icon" style="margin: 0 auto 1.5rem; background: rgba(239, 68, 68, 0.2); color: #f87171;">
+    <i data-feather="server"></i>
+  </div>
+  <h2>500 — System Error</h2>
+  <p style="color: var(--text-muted); margin: 0.75rem 0 1.5rem;">An internal server error occurred. Transaction was rolled back safely.</p>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Return to Dashboard</a>
+</div>
+{% endblock %}

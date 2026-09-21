@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Budget — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>Monthly Budget Management</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Month: <strong>{{ selected_month }}</strong> |
+      Total Budget: <strong style="color: var(--primary);">{{ currency_symbol }} {{ "{:,.2f}".format(total_budget) }}</strong>
+    </p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <form method="GET" action="{{ url_for('budget.index') }}" id="budgetMonthForm">
+      <input type="month" name="month" class="form-control" value="{{ selected_month }}" onchange="document.getElementById('budgetMonthForm').submit()" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;">
+    </form>
+    <a href="{{ url_for('budget.generate_proposal', month=selected_month) }}" class="btn btn-ai btn-sm">
+      <i data-feather="cpu"></i> Generate AI Budget
+    </a>
+  </div>
+</div>
+
+{% if plan %}
+<!-- Budget Status Summary -->
+<div class="kpi-grid">
+  <div class="card kpi-card">
+    <div class="kpi-label">Income Basis</div>
+    <div class="kpi-value income">{{ currency_symbol }} {{ "{:,.2f}".format(plan.total_income_basis) }}</div>
+    <div class="kpi-meta">Plan Mode: {{ plan.generated_by.upper() }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Allocated Budget</div>
+    <div class="kpi-value">{{ currency_symbol }} {{ "{:,.2f}".format(total_budget) }}</div>
+    <div class="kpi-meta">Unallocated: {{ currency_symbol }} {{ "{:,.2f}".format(unallocated) }}</div>
+  </div>
+  <div class="card kpi-card">
+    <div class="kpi-label">Actual Spent</div>
+    <div class="kpi-value expense">{{ currency_symbol }} {{ "{:,.2f}".format(total_spent) }}</div>
+    {% set util_ratio = (total_spent / total_budget * 100)|round(1) if total_budget > 0 else 0.0 %}
+    <div class="kpi-meta">Utilization: <strong>{{ util_ratio }}%</strong></div>
+  </div>
+</div>
+
+<!-- Category Budget Items Table -->
+<div class="card">
+  <h3 class="card-title">
+    <span><i data-feather="sliders" style="color: var(--primary); vertical-align: middle;"></i> Category Limits & Adherence</span>
+    <span class="badge badge-success">Active Plan</span>
+  </h3>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Budget Limit</th>
+          <th>Actual Spent</th>
+          <th>Remaining</th>
+          <th style="min-width: 140px;">Utilization</th>
+          <th>Status</th>
+          <th>AI Context</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td><strong>{{ item.category_name }}</strong></td>
+          <td>
+            {% if item.category_kind == 'need' %}
+              <span class="badge badge-info">Need</span>
+            {% else %}
+              <span class="badge badge-purple">Want</span>
+            {% endif %}
+          </td>
+          <td>{{ currency_symbol }} {{ "{:,.2f}".format(item.limit_amount) }}</td>
+          <td style="font-weight: 600;">{{ currency_symbol }} {{ "{:,.2f}".format(item.actual_spent) }}</td>
+          <td style="color: {% if item.remaining < 0 %}#f87171{% else %}#34d399{% endif %}; font-weight: 500;">
+            {{ currency_symbol }} {{ "{:,.2f}".format(item.remaining) }}
+          </td>
+          <td>
+            <div style="font-size: 0.8rem; margin-bottom: 0.2rem;">{{ item.utilization_pct }}%</div>
+            <div class="progress-bar-container" style="height: 6px;">
+              {% set p_color = '#10b981' if item.status == 'on_track' else ('#f59e0b' if item.status == 'near_limit' else '#ef4444') %}
+              {% set clamp_pct = [100.0, item.utilization_pct]|min %}
+              <div class="progress-bar-fill" style="width: {{ clamp_pct }}%; background: {{ p_color }};"></div>
+            </div>
+          </td>
+          <td>
+            {% if item.status == 'on_track' %}
+              <span class="badge badge-success">On Track</span>
+            {% elif item.status == 'near_limit' %}
+              <span class="badge badge-warning">Near Limit (80%+)</span>
+            {% else %}
+              <span class="badge badge-danger">Exceeded</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.8rem; color: var(--text-sub); max-width: 220px;">
+            {{ item.ai_reason or 'Calculated baseline' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<!-- No Active Plan Empty State -->
+<div class="card" style="text-align: center; padding: 3.5rem 1.5rem;">
+  <div class="brand-icon" style="margin: 0 auto 1.25rem; width: 56px; height: 56px;">
+    <i data-feather="pie-chart" style="width: 30px; height: 30px;"></i>
+  </div>
+  <h3>No Active Budget Plan for {{ selected_month }}</h3>
+  <p style="color: var(--text-muted); max-width: 480px; margin: 0.5rem auto 1.5rem;">
+    Let our AI advisor synthesize your historical 3-month spending, persona rules, and savings goals
+    into a realistic, achievable budget plan.
+  </p>
+  <a href="{{ url_for('budget.generate_proposal', month=selected_month) }}" class="btn btn-ai">
+    <i data-feather="cpu"></i> Generate AI Budget Proposal
+  </a>
+</div>
+{% endif %}
+{% endblock %}

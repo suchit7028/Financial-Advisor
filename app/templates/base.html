@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Personal Finance Advisor Bot{% endblock %}</title>
+
+  <!-- Google Fonts & Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <!-- Chart.js 4.4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Feather Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="{{ url_for('dashboard.index') if current_user.is_authenticated else url_for('auth.login') }}" class="nav-brand">
+        <div class="brand-icon">
+          <i data-feather="shield"></i>
+        </div>
+        <span>FinanceAdvisor<span style="color: var(--primary);">.ai</span></span>
+      </a>
+
+      {% if current_user.is_authenticated %}
+      <ul class="nav-links">
+        <li>
+          <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.blueprint == 'dashboard' %}active{% endif %}">
+            <i data-feather="grid" style="width: 16px; height: 16px;"></i> Dashboard
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('tracking.income') }}" class="nav-link {% if request.endpoint == 'tracking.income' %}active{% endif %}">
+            <i data-feather="arrow-down-left" style="width: 16px; height: 16px;"></i> Income
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('tracking.expenses') }}" class="nav-link {% if request.endpoint == 'tracking.expenses' %}active{% endif %}">
+            <i data-feather="arrow-up-right" style="width: 16px; height: 16px;"></i> Expenses
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('tracking.categories') }}" class="nav-link {% if request.endpoint == 'tracking.categories' %}active{% endif %}">
+            <i data-feather="tag" style="width: 16px; height: 16px;"></i> Categories
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('budget.index') }}" class="nav-link {% if request.blueprint == 'budget' %}active{% endif %}">
+            <i data-feather="pie-chart" style="width: 16px; height: 16px;"></i> Budget
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('insights.index') }}" class="nav-link {% if request.blueprint == 'insights' %}active{% endif %}">
+            <i data-feather="cpu" style="width: 16px; height: 16px;"></i> AI Insights
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('reports.index') }}" class="nav-link {% if request.blueprint == 'reports' %}active{% endif %}">
+            <i data-feather="file-text" style="width: 16px; height: 16px;"></i> Reports
+          </a>
+        </li>
+      </ul>
+
+      <div class="nav-user">
+        <span class="profile-badge">{{ user_profile_type }}</span>
+        <a href="{{ url_for('auth.profile') }}" class="btn btn-outline btn-sm" title="Profile Settings">
+          <i data-feather="user" style="width: 14px; height: 14px;"></i> {{ current_user.name.split()[0] }}
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm" title="Sign Out">
+          <i data-feather="log-out" style="width: 14px; height: 14px;"></i>
+        </a>
+      </div>
+      {% else %}
+      <div class="nav-user">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Sign In</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Get Started</a>
+      </div>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="main-wrapper">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash-msg flash-{{ category }}">
+              <span>{{ message }}</span>
+              <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 1.1rem;">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if current_user.is_authenticated %}
+  <!-- Floating Action Button for Quick Add Expense (<15s) -->
+  <button id="openQuickAddBtn" class="fab-quick-add" title="Quick Add Expense">
+    <i data-feather="plus" style="width: 24px; height: 24px;"></i>
+  </button>
+
+  <!-- Quick Add Expense Modal -->
+  <div id="quickAddModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i data-feather="zap" style="color: var(--primary); vertical-align: middle;"></i> Quick Add Expense</h3>
+        <button id="closeQuickAddBtn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem;">&times;</button>
+      </div>
+      <form id="quickAddForm">
+        <div class="form-group">
+          <label class="form-label">Amount ({{ currency_symbol }})</label>
+          <input type="number" step="0.01" min="0.01" id="qa_amount" class="form-control" required placeholder="e.g. 450">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="qa_category" class="form-control" required>
+            {% for cat in current_user.categories %}
+              {% if not cat.is_archived %}
+              <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.kind.capitalize() }})</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid-2" style="margin-bottom: 0;">
+          <div class="form-group">
+            <label class="form-label">Nature</label>
+            <select id="qa_need_want" class="form-control">
+              <option value="need">Need (Essential)</option>
+              <option value="want">Want (Discretionary)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment</label>
+            <select id="qa_payment" class="form-control">
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Net Banking</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" id="qa_date" class="form-control" value="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (Optional)</label>
+          <input type="text" id="qa_notes" class="form-control" placeholder="e.g. Coffee with team">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+          <i data-feather="check"></i> Save Expense
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Disclaimer Footer -->
+  <footer class="disclaimer-banner">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <p>
+        <strong>Disclaimer:</strong> Personal Finance Advisor Bot generates insights for educational and informational purposes only.
+        It does not provide certified financial, investment, legal, or tax advice. All numerical figures, budget limits, and health scores
+        are calculated deterministically by system rules.
+      </p>
+      <p style="margin-top: 0.25rem; font-size: 0.75rem; color: #475569;">
+        Currency: {{ current_currency }} ({{ currency_symbol }}) | Persona Mode: {{ user_profile_type.capitalize() }} | Secure scoped session
+      </p>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+    feather.replace();
+    // Default today's date for quick add
+    const qaDateInput = document.getElementById("qa_date");
+    if (qaDateInput && !qaDateInput.value) {
+      qaDateInput.value = new Date().toISOString().split('T')[0];
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

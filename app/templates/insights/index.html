@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}AI Spending Insights — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>AI Financial Advisor & Insights</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Persona: <strong style="color: var(--primary);">{{ user_profile_type.capitalize() }}</strong> |
+      Data snapshot for <strong>{{ selected_month }}</strong>
+    </p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <form method="GET" action="{{ url_for('insights.index') }}" id="insightsMonthForm">
+      <input type="month" name="month" class="form-control" value="{{ selected_month }}" onchange="document.getElementById('insightsMonthForm').submit()" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;">
+    </form>
+    <a href="{{ url_for('insights.index', month=selected_month, refresh=1) }}" class="btn btn-ai btn-sm" title="Re-analyze with latest transactions">
+      <i data-feather="refresh-cw"></i> Refresh Insights
+    </a>
+  </div>
+</div>
+
+<!-- Score Card & Breakdown -->
+<div class="grid-3" style="margin-bottom: 2rem;">
+  <!-- Overall Health Score Gauge -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 2rem 1.5rem;">
+    <div style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+      Financial Health Index
+    </div>
+    <div style="font-family: var(--font-heading); font-size: 3.5rem; font-weight: 800; color: #c084fc; line-height: 1;">
+      {{ health_score.total_score }}
+    </div>
+    <div style="font-size: 1.1rem; font-weight: 600; color: var(--primary); margin-top: 0.5rem;">
+      {{ health_score.rating }}
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-sub); margin-top: 0.75rem;">
+      Calculated deterministically from 4 key financial pillars.
+    </p>
+  </div>
+
+  <!-- Score Breakdown Pillars -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="bar-chart" style="color: var(--primary); vertical-align: middle;"></i> Scoring Breakdown</span>
+      <span class="badge badge-purple">Transparent Rubric</span>
+    </h3>
+
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <!-- Savings Score -->
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+          <span>Savings Rate Discipline</span>
+          <strong>{{ health_score.breakdown.savings_score }} / {{ health_score.breakdown.savings_score_max }} pts</strong>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: {{ (health_score.breakdown.savings_score / health_score.breakdown.savings_score_max * 100)|round }}%; background: #10b981;"></div>
+        </div>
+      </div>
+
+      <!-- Budget Adherence -->
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+          <span>Budget Adherence</span>
+          <strong>{{ health_score.breakdown.budget_score }} / {{ health_score.breakdown.budget_score_max }} pts</strong>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: {{ (health_score.breakdown.budget_score / health_score.breakdown.budget_score_max * 100)|round }}%; background: #3b82f6;"></div>
+        </div>
+      </div>
+
+      <!-- Emergency Fund Coverage -->
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+          <span>Emergency Reserve Coverage</span>
+          <strong>{{ health_score.breakdown.emergency_fund_score }} / {{ health_score.breakdown.emergency_fund_score_max }} pts</strong>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: {{ (health_score.breakdown.emergency_fund_score / health_score.breakdown.emergency_fund_score_max * 100)|round }}%; background: #8b5cf6;"></div>
+        </div>
+      </div>
+
+      <!-- Expense Discipline -->
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+          <span>Discretionary Expense Control</span>
+          <strong>{{ health_score.breakdown.discipline_score }} / {{ health_score.breakdown.discipline_score_max }} pts</strong>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: {{ (health_score.breakdown.discipline_score / health_score.breakdown.discipline_score_max * 100)|round }}%; background: #f59e0b;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Student Runway Special Box if Student Persona -->
+{% if runway %}
+<div class="card" style="margin-bottom: 2rem; border-color: {% if runway.is_critical %}#ef4444{% else %}#3b82f6{% endif %}; background: {% if runway.is_critical %}rgba(239, 68, 68, 0.05){% else %}rgba(59, 130, 246, 0.05){% endif %};">
+  <div class="card-title">
+    <span style="color: {% if runway.is_critical %}#f87171{% else %}#60a5fa{% endif %};">
+      <i data-feather="clock" style="vertical-align: middle;"></i> Student Allowance Runway Gauge
+    </span>
+    {% if runway.is_critical %}
+      <span class="badge badge-danger">Allowance Alert</span>
+    {% else %}
+      <span class="badge badge-success">Runway Safe</span>
+    {% endif %}
+  </div>
+  <p style="font-size: 0.95rem; margin-bottom: 0.75rem;">
+    At your current burn rate of <strong>{{ currency_symbol }} {{ runway.daily_burn_rate }} / day</strong>,
+    your remaining cash ({{ currency_symbol }} {{ runway.remaining_balance }}) will last approximately
+    <strong style="font-size: 1.1rem; color: {% if runway.is_critical %}#f87171{% else %}#34d399{% endif %};">{{ runway.runway_days }} days</strong>.
+    There are {{ runway.days_remaining_in_month }} days remaining in this month.
+  </p>
+</div>
+{% endif %}
+
+<!-- AI Advisory Sections -->
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <!-- Overspending & Spikes Detection -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="alert-circle" style="color: #f87171; vertical-align: middle;"></i> Spending Spikes & Overruns</span>
+      <span class="badge badge-danger">{{ overspending.top_3_to_fix|length }} Flagged</span>
+    </h3>
+
+    {% if overspending.top_3_to_fix %}
+      <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+        {% for fix in overspending.top_3_to_fix %}
+        <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <strong>{{ fix.category }}</strong>
+            <span style="color: #f87171; font-weight: 600;">{{ currency_symbol }} {{ "{:,.2f}".format(fix.actual_spend) }}</span>
+          </div>
+          <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+            {% for r in fix.reasons %}
+              <li>{{ r }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="padding: 2rem 0; text-align: center; color: #34d399;">
+        <i data-feather="check-circle" style="width: 32px; height: 32px; margin-bottom: 0.5rem;"></i>
+        <p>No critical overspending spikes detected this month!</p>
+      </div>
+    {% endif %}
+
+    <!-- AI Observations -->
+    {% if ai_data.overspending_insights %}
+    <div style="margin-top: 1.25rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+      <h4 style="font-size: 0.9rem; color: #c084fc; margin-bottom: 0.5rem;">
+        <i data-feather="cpu" style="width: 14px; height: 14px; vertical-align: middle;"></i> Advisor Observations:
+      </h4>
+      <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+        {% for tip in ai_data.overspending_insights %}
+          <li style="margin-bottom: 0.35rem;">{{ tip }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Cost Optimization Suggestions -->
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="scissors" style="color: #fbbf24; vertical-align: middle;"></i> Cost Optimization Plan</span>
+      <span class="badge badge-warning">Actionable</span>
+    </h3>
+
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+      Specific adjustments to cut waste without sacrificing lifestyle quality:
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      {% for opt in ai_data.cost_optimizations %}
+      <div style="display: flex; gap: 0.75rem; background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <i data-feather="check" style="color: var(--primary); flex-shrink: 0; width: 18px; height: 18px; margin-top: 0.15rem;"></i>
+        <span style="font-size: 0.9rem; color: var(--text-main);">{{ opt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Suggested Goals for Next Month -->
+    {% if ai_data.next_month_goals %}
+    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+      <h4 style="font-size: 0.9rem; color: #38bdf8; margin-bottom: 0.5rem;">
+        <i data-feather="flag" style="width: 14px; height: 14px; vertical-align: middle;"></i> Next Month's Targets:
+      </h4>
+      <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+        {% for g in ai_data.next_month_goals %}
+          <li style="margin-bottom: 0.35rem;">{{ g }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Emergency Fund Guidance -->
+<div class="card" style="border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.04);">
+  <h3 class="card-title">
+    <span style="color: #34d399;">
+      <i data-feather="shield" style="vertical-align: middle;"></i> Emergency Fund Guidance
+    </span>
+    <span class="badge badge-success">{{ ef_status.progress_pct }}% Funded</span>
+  </h3>
+  <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.75rem;">
+    {{ ai_data.emergency_fund_guidance }}
+  </p>
+  <div style="display: flex; gap: 2rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted);">
+    <span>Target Cushions: <strong>{{ ef_status.target_months }} Months Essentials</strong></span>
+    <span>Recommended Target: <strong>{{ currency_symbol }} {{ "{:,.2f}".format(ef_status.recommended_target) }}</strong></span>
+    <span>Currently Saved: <strong>{{ currency_symbol }} {{ "{:,.2f}".format(ef_status.current_saved) }}</strong></span>
+    <span>Remaining Gap: <strong style="color: #f87171;">{{ currency_symbol }} {{ "{:,.2f}".format(ef_status.gap) }}</strong></span>
+  </div>
+</div>
+{% endblock %}

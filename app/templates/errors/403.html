@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Forbidden (403) — Personal Finance Advisor Bot{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 480px; margin: 4rem auto; text-align: center; padding: 3rem 1.5rem;">
+  <div class="brand-icon" style="margin: 0 auto 1.5rem; background: rgba(245, 158, 11, 0.2); color: #fbbf24;">
+    <i data-feather="shield-off"></i>
+  </div>
+  <h2>403 — Access Denied</h2>
+  <p style="color: var(--text-muted); margin: 0.75rem 0 1.5rem;">You do not have permission to view this financial record.</p>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Return to Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="max-width: 540px; margin: 2rem auto;">
+  <div class="card" style="padding: 2.25rem;">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="brand-icon" style="margin: 0 auto 1rem; width: 44px; height: 44px;">
+        <i data-feather="user-plus"></i>
+      </div>
+      <h2>Get Started</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.35rem;">
+        Take control of your money with personalized, AI-driven guidance
+      </p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register') }}">
+      {{ form.hidden_tag() }}
+
+      <div class="form-group">
+        <label class="form-label">{{ form.name.label }}</label>
+        {{ form.name(class="form-control", placeholder="e.g. Alex Morgan") }}
+        {% for error in form.name.errors %}
+          <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ form.email.label }}</label>
+        {{ form.email(class="form-control", placeholder="alex@domain.com") }}
+        {% for error in form.email.errors %}
+          <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 0;">
+        <div class="form-group">
+          <label class="form-label">{{ form.password.label }}</label>
+          {{ form.password(class="form-control", placeholder="Min 8 characters") }}
+          {% for error in form.password.errors %}
+            <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ form.confirm_password.label }}</label>
+          {{ form.confirm_password(class="form-control", placeholder="Confirm password") }}
+          {% for error in form.confirm_password.errors %}
+            <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ form.profile_type.label }}</label>
+        {{ form.profile_type(class="form-control") }}
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-top: 0.25rem;">
+          Your profile type customizes your default categories, budget rules, and AI advisory strategy.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ form.currency.label }}</label>
+        {{ form.currency(class="form-control") }}
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+        <i data-feather="arrow-right"></i> Create Account
+      </button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.75rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem; font-size: 0.875rem; color: var(--text-muted);">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Sign In</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

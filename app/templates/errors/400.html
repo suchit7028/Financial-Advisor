@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Bad Request (400) — Personal Finance Advisor Bot{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 480px; margin: 4rem auto; text-align: center; padding: 3rem 1.5rem;">
+  <div class="brand-icon" style="margin: 0 auto 1.5rem; background: rgba(239, 68, 68, 0.2); color: #f87171;">
+    <i data-feather="alert-octagon"></i>
+  </div>
+  <h2>400 — Bad Request</h2>
+  <p style="color: var(--text-muted); margin: 0.75rem 0 1.5rem;">{{ error.description if error and error.description else 'The server could not understand the request.' }}</p>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Return to Dashboard</a>
+</div>
+{% endblock %}

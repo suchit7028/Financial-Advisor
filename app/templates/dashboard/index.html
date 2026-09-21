@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<!-- Top Header & Month Filter -->
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+  <div>
+    <h2>Financial Overview</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+      Persona: <strong style="color: var(--primary);">{{ user_profile_type.capitalize() }}</strong> |
+      Reviewing finances for <strong>{{ selected_month }}</strong>
+    </p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <!-- Month Selector -->
+    <form method="GET" action="{{ url_for('dashboard.index') }}" id="monthFilterForm" style="display: flex; align-items: center; gap: 0.5rem;">
+      <select name="month" class="form-control" style="padding: 0.5rem 0.85rem; font-size: 0.875rem;" onchange="document.getElementById('monthFilterForm').submit()">
+        {% for m in months_choice %}
+          <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </form>
+
+    <a href="{{ url_for('budget.generate_proposal', month=selected_month) }}" class="btn btn-ai btn-sm">
+      <i data-feather="cpu" style="width: 14px; height: 14px;"></i> AI Budget
+    </a>
+  </div>
+</div>
+
+<!-- Empty State Check -->
+{% if agg.income_count == 0 and agg.expense_count == 0 %}
+<div class="card" style="text-align: center; padding: 3rem 1.5rem; margin-bottom: 2rem; border-style: dashed;">
+  <div class="brand-icon" style="margin: 0 auto 1.25rem; width: 52px; height: 52px;">
+    <i data-feather="sparkles" style="width: 28px; height: 28px;"></i>
+  </div>
+  <h3>Welcome to Personal Finance Advisor Bot!</h3>
+  <p style="color: var(--text-muted); max-width: 520px; margin: 0.5rem auto 1.5rem;">
+    Start taking control of your money. Log your income or expenses, and our deterministic engine
+    and AI advisor will immediately begin tailoring your personalized budget.
+  </p>
+  <div style="display: flex; justify-content: center; gap: 1rem;">
+    <a href="{{ url_for('tracking.income') }}" class="btn btn-primary">
+      <i data-feather="plus"></i> Add First Income
+    </a>
+    <a href="{{ url_for('tracking.expenses') }}" class="btn btn-outline">
+      <i data-feather="arrow-up-right"></i> Log Expense
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <!-- Total Income -->
+  <div class="card kpi-card">
+    <div class="kpi-label">
+      <span>Total Income</span>
+      <i data-feather="arrow-down-left" style="color: #34d399; width: 18px; height: 18px;"></i>
+    </div>
+    <div class="kpi-value income">{{ currency_symbol }} {{ "{:,.2f}".format(agg.total_income) }}</div>
+    <div class="kpi-meta">{{ agg.income_count }} transactions recorded</div>
+  </div>
+
+  <!-- Total Expenses -->
+  <div class="card kpi-card">
+    <div class="kpi-label">
+      <span>Total Expenses</span>
+      <i data-feather="arrow-up-right" style="color: #f87171; width: 18px; height: 18px;"></i>
+    </div>
+    <div class="kpi-value expense">{{ currency_symbol }} {{ "{:,.2f}".format(agg.total_expenses) }}</div>
+    <div class="kpi-meta">Needs: {{ currency_symbol }} {{ "{:,.2f}".format(agg.needs_total) }} | Wants: {{ currency_symbol }} {{ "{:,.2f}".format(agg.wants_total) }}</div>
+  </div>
+
+  <!-- Net Savings -->
+  <div class="card kpi-card">
+    <div class="kpi-label">
+      <span>Net Savings</span>
+      <i data-feather="pie-chart" style="color: #38bdf8; width: 18px; height: 18px;"></i>
+    </div>
+    <div class="kpi-value savings">{{ currency_symbol }} {{ "{:,.2f}".format(agg.net_savings) }}</div>
+    <div class="kpi-meta">Savings Rate: <strong>{{ agg.savings_rate }}%</strong></div>
+  </div>
+
+  <!-- Financial Health Score -->
+  <div class="card kpi-card">
+    <div class="kpi-label">
+      <span>Financial Health</span>
+      <i data-feather="activity" style="color: #c084fc; width: 18px; height: 18px;"></i>
+    </div>
+    <div class="kpi-value ai">{{ health.total_score }} <span style="font-size: 1rem; color: var(--text-sub); font-weight: normal;">/ 100</span></div>
+    <div class="kpi-meta">Rating: <strong style="color: var(--primary);">{{ health.rating }}</strong></div>
+  </div>
+</div>
+
+<!-- Savings Goals & Emergency Fund Progress Bars -->
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <!-- Monthly Savings Goal Progress -->
+  <div class="card">
+    <div class="card-title">
+      <span><i data-feather="target" style="color: #38bdf8; vertical-align: middle;"></i> Monthly Savings Goal</span>
+      <span style="font-size: 0.85rem; color: var(--text-muted);">Goal: {{ currency_symbol }} {{ "{:,.2f}".format(current_user.monthly_savings_goal) }}</span>
+    </div>
+    {% set goal_target = current_user.monthly_savings_goal|float %}
+    {% set actual_savings = agg.net_savings|float %}
+    {% set savings_pct = (actual_savings / goal_target * 100)|round(1) if goal_target > 0 else 100.0 %}
+    {% set clamped_pct = [100.0, [0.0, savings_pct]|max]|min %}
+    <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
+      <span>Achieved: <strong>{{ currency_symbol }} {{ "{:,.2f}".format(agg.net_savings) }}</strong></span>
+      <span><strong>{{ savings_pct }}%</strong></span>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" style="width: {{ clamped_pct }}%; background: #38bdf8;"></div>
+    </div>
+  </div>
+
+  <!-- Emergency Fund Cushion -->
+  <div class="card">
+    <div class="card-title">
+      <span><i data-feather="shield" style="color: var(--primary); vertical-align: middle;"></i> Emergency Fund Cushion</span>
+      <span style="font-size: 0.85rem; color: var(--text-muted);">Target: {{ ef_status.target_months }} Months</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
+      <span>Covered: <strong>{{ ef_status.months_covered }} Months</strong> ({{ currency_symbol }} {{ "{:,.2f}".format(ef_status.current_saved) }})</span>
+      <span><strong>{{ ef_status.progress_pct }}%</strong></span>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" style="width: {{ ef_status.progress_pct }}%; background: var(--primary);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 1: Expense Breakdown Donut & Budget Performance Bar -->
+<div class="grid-2">
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="pie-chart" style="color: var(--primary); vertical-align: middle;"></i> Expenses by Category</span>
+      <span style="font-size: 0.8rem; color: var(--text-sub);">Donut Breakdown</span>
+    </h3>
+    <div style="position: relative; height: 260px;">
+      <canvas id="expenseDonutChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="bar-chart-2" style="color: #38bdf8; vertical-align: middle;"></i> Budget vs. Actual</span>
+      {% if plan %}
+        <span class="badge badge-success">Active Plan</span>
+      {% else %}
+        <a href="{{ url_for('budget.generate_proposal', month=selected_month) }}" class="badge badge-warning">Create Plan</a>
+      {% endif %}
+    </h3>
+    <div style="position: relative; height: 260px;">
+      {% if plan %}
+        <canvas id="budgetBarChart"></canvas>
+      {% else %}
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+          <p style="color: var(--text-muted); margin-bottom: 1rem;">No budget plan active for {{ selected_month }}.</p>
+          <a href="{{ url_for('budget.generate_proposal', month=selected_month) }}" class="btn btn-outline btn-sm">
+            Generate AI Budget
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 2: 6-Month Income vs Expense Trend & Income by Source -->
+<div class="grid-3">
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="trending-up" style="color: #10b981; vertical-align: middle;"></i> 6-Month Income vs. Expense Trend</span>
+      <span style="font-size: 0.8rem; color: var(--text-sub);">Cash Flow Consistency</span>
+    </h3>
+    <div style="position: relative; height: 240px;">
+      <canvas id="trendLineChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title">
+      <span><i data-feather="briefcase" style="color: #c084fc; vertical-align: middle;"></i> Income by Source</span>
+    </h3>
+    <div style="position: relative; height: 240px;">
+      <canvas id="incomeSourceChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- AI Recommendation Cards & Quick Actions -->
+<div class="card" style="border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.04);">
+  <div class="card-title">
+    <span style="color: #c084fc;">
+      <i data-feather="cpu" style="vertical-align: middle;"></i> AI Spending Highlights & Suggestions
+    </span>
+    <a href="{{ url_for('insights.index', month=selected_month) }}" class="btn btn-ai btn-sm">
+      Full AI Analysis <i data-feather="arrow-right" style="width: 14px; height: 14px;"></i>
+    </a>
+  </div>
+  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+    {{ health.summary }}
+  </p>
+  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+    <a href="{{ url_for('reports.view_report', month_str=selected_month) }}" class="btn btn-outline btn-sm">
+      <i data-feather="file-text"></i> View Monthly Report
+    </a>
+    <a href="{{ url_for('reports.download_pdf', month_str=selected_month) }}" class="btn btn-outline btn-sm">
+      <i data-feather="download"></i> Download PDF
+    </a>
+    <a href="{{ url_for('reports.export_csv', month=selected_month) }}" class="btn btn-outline btn-sm">
+      <i data-feather="table"></i> Export CSV
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    loadDashboardCharts("{{ selected_month }}");
+  });
+</script>
+{% endblock %}

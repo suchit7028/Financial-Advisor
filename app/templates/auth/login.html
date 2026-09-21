@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — Personal Finance Advisor Bot{% endblock %}
+
+{% block content %}
+<div style="max-width: 440px; margin: 3rem auto;">
+  <div class="card" style="padding: 2.25rem;">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="brand-icon" style="margin: 0 auto 1rem; width: 44px; height: 44px;">
+        <i data-feather="lock"></i>
+      </div>
+      <h2>Welcome Back</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.35rem;">Sign in to your private financial vault</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      {{ form.hidden_tag() }}
+
+      <div class="form-group">
+        <label class="form-label">{{ form.email.label }}</label>
+        {{ form.email(class="form-control", placeholder="you@domain.com") }}
+        {% for error in form.email.errors %}
+          <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ form.password.label }}</label>
+        {{ form.password(class="form-control", placeholder="••••••••") }}
+        {% for error in form.password.errors %}
+          <span style="color: var(--danger); font-size: 0.8rem;">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+        {{ form.remember() }}
+        <label for="remember" style="color: var(--text-muted); font-size: 0.85rem; cursor: pointer;">Keep me logged in</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+        <i data-feather="log-in"></i> Sign In
+      </button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.75rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem; font-size: 0.875rem; color: var(--text-muted);">
+      Don't have an account? <a href="{{ url_for('auth.register') }}">Create one now</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
